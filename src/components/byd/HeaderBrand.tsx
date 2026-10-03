@@ -1,23 +1,52 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { useTheme } from '../../context/ThemeContext';
 
 export const HeaderBrand: React.FC = () => {
+  const { theme } = useTheme();
+
   return (
     <View style={styles.container}>
       <View style={styles.topRow}>
-        <View style={styles.logoBadge}>
-          <Text style={styles.logoText}>BYD</Text>
-          <Text style={styles.subLogoText}>CLOUD</Text>
+        <View
+          style={[
+            styles.logoBadge,
+            {
+              backgroundColor: theme.primaryContainer,
+              borderColor: theme.border,
+              borderRadius: theme.radius.md,
+            },
+          ]}
+        >
+          <Text style={[styles.logoText, { color: theme.primary }]}>BYD</Text>
+          <Text style={[styles.subLogoText, { color: theme.textSecondary }]}>CLOUD</Text>
         </View>
 
-        <View style={styles.livePill}>
-          <View style={styles.liveDot} />
-          <Text style={styles.modeText}>CONNECTIVITÉ CLOUD</Text>
+        <View
+          style={[
+            styles.livePill,
+            {
+              backgroundColor: theme.surfaceVariant,
+              borderColor: theme.border,
+              borderRadius: theme.radius.pill,
+            },
+          ]}
+        >
+          <View
+            style={[
+              styles.liveDot,
+              {
+                backgroundColor: theme.success,
+                borderRadius: theme.radius.full,
+              },
+            ]}
+          />
+          <Text style={[styles.modeText, { color: theme.textSecondary }]}>CONNECTIVITÉ CLOUD</Text>
         </View>
       </View>
 
-      <Text style={styles.title}>Connexion DiLink Cloud</Text>
-      <Text style={styles.subtitle}>
+      <Text style={[styles.title, { color: theme.textPrimary }]}>Connexion DiLink Cloud</Text>
+      <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
         Accédez à la télémétrie et aux commandes à distance de votre véhicule BYD
       </Text>
     </View>
@@ -39,23 +68,19 @@ const styles = StyleSheet.create({
   logoBadge: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    backgroundColor: 'rgba(0, 102, 255, 0.12)',
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(0, 102, 255, 0.3)',
   },
   logoText: {
     fontSize: 22,
     fontWeight: '900',
-    color: '#00F0FF',
     letterSpacing: 3,
   },
   subLogoText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#8A99AD',
     marginLeft: 6,
     letterSpacing: 2,
   },
@@ -66,32 +91,27 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
-    backgroundColor: 'rgba(0, 240, 255, 0.1)',
-    borderColor: 'rgba(0, 240, 255, 0.3)',
   },
   liveDot: {
     width: 7,
     height: 7,
     borderRadius: 4,
     marginRight: 6,
-    backgroundColor: '#00F0FF',
   },
   modeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#E2E8F0',
     letterSpacing: 1,
   },
   title: {
     fontSize: 26,
     fontWeight: '800',
-    color: '#FFFFFF',
     marginBottom: 6,
     letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 14,
-    color: '#94A3B8',
     lineHeight: 20,
   },
 });
+

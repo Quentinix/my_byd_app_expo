@@ -1,4 +1,5 @@
 import { AuthStatus } from '@/context/AuthContext';
+import { useTheme } from '@/context/ThemeContext';
 import React, { useState } from 'react';
 import {
   View,
@@ -37,6 +38,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   errorMessage,
   onLogin,
 }) => {
+  const { theme, isDark } = useTheme();
   const [username, setUsername] = useState(initialUsername);
   const [password, setPassword] = useState('');
   const [countryCode, setCountryCode] = useState(initialCountryCode);
@@ -52,22 +54,51 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   const selectedCountry = COUNTRY_CODES.find((c) => c.code === countryCode) || COUNTRY_CODES[0];
 
   return (
-    <View style={styles.card}>
+    <View
+      style={[
+        styles.card,
+        {
+          backgroundColor: theme.surface,
+          borderColor: theme.border,
+          shadowColor: theme.shadow,
+          borderRadius: theme.radius.lg,
+        },
+      ]}
+    >
       {errorMessage ? (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorTitle}>Échec de la connexion</Text>
-          <Text style={styles.errorText}>{errorMessage}</Text>
+        <View
+          style={[
+            styles.errorContainer,
+            {
+              backgroundColor: isDark ? 'rgba(239, 68, 68, 0.12)' : '#FEF2F2',
+              borderColor: isDark ? 'rgba(239, 68, 68, 0.3)' : '#FCA5A5',
+              borderRadius: theme.radius.md,
+            },
+          ]}
+        >
+          <Text style={[styles.errorTitle, { color: theme.error }]}>Échec de la connexion</Text>
+          <Text style={[styles.errorText, { color: theme.error }]}>{errorMessage}</Text>
         </View>
       ) : null}
 
       {/* Identifiant */}
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>IDENTIFIANT (E-MAIL OU TÉLÉPHONE)</Text>
+        <Text style={[styles.label, { color: theme.textSecondary }]}>
+          IDENTIFIANT (E-MAIL OU TÉLÉPHONE)
+        </Text>
         <View style={styles.inputWrapper}>
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              {
+                backgroundColor: theme.inputBackground,
+                borderColor: theme.border,
+                color: theme.textPrimary,
+                borderRadius: theme.radius.md,
+              },
+            ]}
             placeholder="votre.email@exemple.com"
-            placeholderTextColor="#64748B"
+            placeholderTextColor={theme.textMuted}
             value={username}
             onChangeText={setUsername}
             autoCapitalize="none"
@@ -78,12 +109,21 @@ export const LoginForm: React.FC<LoginFormProps> = ({
 
       {/* Mot de passe */}
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>MOT DE PASSE</Text>
+        <Text style={[styles.label, { color: theme.textSecondary }]}>MOT DE PASSE</Text>
         <View style={styles.inputWrapper}>
           <TextInput
-            style={[styles.input, { paddingRight: 50 }]}
+            style={[
+              styles.input,
+              {
+                backgroundColor: theme.inputBackground,
+                borderColor: theme.border,
+                color: theme.textPrimary,
+                borderRadius: theme.radius.md,
+                paddingRight: 50,
+              },
+            ]}
             placeholder="••••••••••••"
-            placeholderTextColor="#64748B"
+            placeholderTextColor={theme.textMuted}
             secureTextEntry={!showPassword}
             value={password}
             onChangeText={setPassword}
@@ -91,21 +131,34 @@ export const LoginForm: React.FC<LoginFormProps> = ({
           <TouchableOpacity
             style={styles.eyeButton}
             onPress={() => setShowPassword(!showPassword)}
+            activeOpacity={theme.opacity.pressed}
           >
-            <Text style={styles.eyeText}>{showPassword ? 'MASQUER' : 'AFFICHER'}</Text>
+            <Text style={[styles.eyeText, { color: theme.primary }]}>
+              {showPassword ? 'MASQUER' : 'AFFICHER'}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
 
       {/* Code Pays */}
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>PAYS / RÉGION DU COMPTE</Text>
+        <Text style={[styles.label, { color: theme.textSecondary }]}>PAYS / RÉGION DU COMPTE</Text>
         <TouchableOpacity
-          style={styles.selectWrapper}
+          style={[
+            styles.selectWrapper,
+            {
+              backgroundColor: theme.inputBackground,
+              borderColor: theme.border,
+              borderRadius: theme.radius.md,
+            },
+          ]}
           onPress={() => setShowCountryModal(true)}
+          activeOpacity={theme.opacity.pressed}
         >
-          <Text style={styles.selectText}>{selectedCountry.label}</Text>
-          <Text style={styles.selectArrow}>▼</Text>
+          <Text style={[styles.selectText, { color: theme.textPrimary }]}>
+            {selectedCountry.label}
+          </Text>
+          <Text style={[styles.selectArrow, { color: theme.textMuted }]}>▼</Text>
         </TouchableOpacity>
       </View>
 
@@ -114,57 +167,100 @@ export const LoginForm: React.FC<LoginFormProps> = ({
         <TouchableOpacity
           style={styles.checkboxRow}
           onPress={() => setRememberMe(!rememberMe)}
-          activeOpacity={0.8}
+          activeOpacity={theme.opacity.pressed}
         >
-          <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
-            {rememberMe && <Text style={styles.checkmark}>✓</Text>}
+          <View
+            style={[
+              styles.checkbox,
+              {
+                backgroundColor: rememberMe ? theme.primary : theme.inputBackground,
+                borderColor: rememberMe ? theme.primary : theme.border,
+                borderRadius: theme.radius.xs,
+              },
+            ]}
+          >
+            {rememberMe && (
+              <Text style={[styles.checkmark, { color: theme.primaryText }]}>✓</Text>
+            )}
           </View>
-          <Text style={styles.checkboxLabel}>Se souvenir de moi</Text>
+          <Text style={[styles.checkboxLabel, { color: theme.textSecondary }]}>
+            Se souvenir de moi
+          </Text>
         </TouchableOpacity>
       </View>
 
       {/* Bouton de Connexion */}
       <TouchableOpacity
-        style={[styles.submitButton, status === 'loading' && styles.submitButtonDisabled]}
+        style={[
+          styles.submitButton,
+          {
+            backgroundColor: theme.primary,
+            shadowColor: theme.primary,
+            borderRadius: theme.radius.md,
+          },
+          status === 'loading' && { opacity: theme.opacity.disabled },
+        ]}
         onPress={handleSubmit}
         disabled={status === 'loading'}
-        activeOpacity={0.85}
+        activeOpacity={theme.opacity.pressed}
       >
         {status === 'loading' ? (
-          <ActivityIndicator color="#0D1117" size="small" />
+          <ActivityIndicator color={theme.primaryText} size="small" />
         ) : (
-          <Text style={styles.submitButtonText}>SE CONNECTER AU CLOUD BYD</Text>
+          <Text style={[styles.submitButtonText, { color: theme.primaryText }]}>
+            SE CONNECTER AU CLOUD BYD
+          </Text>
         )}
       </TouchableOpacity>
 
       {/* Modal Sélection de Pays */}
       <Modal visible={showCountryModal} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Sélectionnez votre Pays / Région</Text>
+        <View style={[styles.modalOverlay, { backgroundColor: theme.overlay }]}>
+          <View
+            style={[
+              styles.modalContent,
+              {
+                backgroundColor: theme.surface,
+                borderColor: theme.border,
+                borderRadius: theme.radius.lg,
+              },
+            ]}
+          >
+            <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>
+              Sélectionnez votre Pays / Région
+            </Text>
             <ScrollView style={{ maxHeight: 240 }}>
               {COUNTRY_CODES.map((item) => (
                 <TouchableOpacity
                   key={item.code}
                   style={[
                     styles.modalOption,
-                    item.code === countryCode && styles.modalOptionSelected,
+                    { borderRadius: theme.radius.sm },
+                    item.code === countryCode && {
+                      backgroundColor: theme.primaryContainer,
+                    },
                   ]}
                   onPress={() => {
                     setCountryCode(item.code);
                     setShowCountryModal(false);
                   }}
+                  activeOpacity={theme.opacity.pressed}
                 >
-                  <Text style={styles.modalOptionText}>{item.label}</Text>
-                  {item.code === countryCode && <Text style={styles.modalCheck}>✓</Text>}
+                  <Text style={[styles.modalOptionText, { color: theme.textPrimary }]}>
+                    {item.label}
+                  </Text>
+                  {item.code === countryCode && (
+                    <Text style={[styles.modalCheck, { color: theme.primary }]}>✓</Text>
+                  )}
                 </TouchableOpacity>
               ))}
             </ScrollView>
             <TouchableOpacity
               style={styles.modalCloseButton}
               onPress={() => setShowCountryModal(false)}
+              activeOpacity={theme.opacity.pressed}
             >
-              <Text style={styles.modalCloseText}>Fermer</Text>
+              <Text style={[styles.modalCloseText, { color: theme.textSecondary }]}>Fermer</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -175,32 +271,26 @@ export const LoginForm: React.FC<LoginFormProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#161B22',
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    shadowColor: '#00F0FF',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.08,
     shadowRadius: 12,
+    elevation: 3,
   },
   errorContainer: {
-    backgroundColor: 'rgba(239, 68, 68, 0.12)',
-    borderColor: 'rgba(239, 68, 68, 0.3)',
     borderWidth: 1,
     borderRadius: 10,
     padding: 12,
     marginBottom: 16,
   },
   errorTitle: {
-    color: '#EF4444',
     fontWeight: '700',
     fontSize: 13,
     marginBottom: 2,
   },
   errorText: {
-    color: '#FCA5A5',
     fontSize: 12,
     lineHeight: 16,
   },
@@ -210,7 +300,6 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#94A3B8',
     marginBottom: 6,
     letterSpacing: 1,
   },
@@ -219,13 +308,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   input: {
-    backgroundColor: '#0D1117',
     borderWidth: 1,
-    borderColor: '#30363D',
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    color: '#FFFFFF',
     fontSize: 15,
   },
   eyeButton: {
@@ -234,15 +320,12 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   eyeText: {
-    color: '#00F0FF',
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 1,
   },
   selectWrapper: {
-    backgroundColor: '#0D1117',
     borderWidth: 1,
-    borderColor: '#30363D',
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 12,
@@ -251,11 +334,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   selectText: {
-    color: '#FFFFFF',
     fontSize: 14,
   },
   selectArrow: {
-    color: '#64748B',
     fontSize: 10,
   },
   optionsRow: {
@@ -274,53 +355,37 @@ const styles = StyleSheet.create({
     height: 18,
     borderRadius: 4,
     borderWidth: 1,
-    borderColor: '#475569',
-    backgroundColor: '#0D1117',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
   },
-  checkboxChecked: {
-    backgroundColor: '#0066FF',
-    borderColor: '#0066FF',
-  },
   checkmark: {
-    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: 'bold',
   },
   checkboxLabel: {
-    color: '#CBD5E1',
     fontSize: 13,
   },
-  noticeLink: {
-    color: '#00F0FF',
-    fontSize: 12,
-    fontWeight: '600',
-    textDecorationLine: 'underline',
-  },
   submitButton: {
-    backgroundColor: '#00F0FF',
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
-    shadowColor: '#00F0FF',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.2,
     shadowRadius: 8,
+    elevation: 2,
   },
   submitButtonDisabled: {
     opacity: 0.6,
   },
   submitButtonText: {
-    color: '#090D16',
     fontWeight: '900',
     fontSize: 14,
     letterSpacing: 1.5,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.75)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
@@ -328,14 +393,11 @@ const styles = StyleSheet.create({
   modalContent: {
     width: '100%',
     maxWidth: 360,
-    backgroundColor: '#161B22',
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#30363D',
   },
   modalTitle: {
-    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
     marginBottom: 16,
@@ -348,15 +410,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  modalOptionSelected: {
-    backgroundColor: 'rgba(0, 102, 255, 0.2)',
-  },
   modalOptionText: {
-    color: '#E2E8F0',
     fontSize: 14,
   },
   modalCheck: {
-    color: '#00F0FF',
     fontWeight: 'bold',
   },
   modalCloseButton: {
@@ -365,8 +422,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   modalCloseText: {
-    color: '#94A3B8',
     fontSize: 13,
     fontWeight: '600',
   },
 });
+

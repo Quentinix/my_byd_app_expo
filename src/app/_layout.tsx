@@ -1,15 +1,29 @@
 import { Stack } from 'expo-router';
+import { Host } from '@expo/ui';
 import { AuthProvider } from '../context/AuthContext';
+import { ThemeProvider, useTheme } from '../context/ThemeContext';
 
-export default function RootLayout() {
+function RootLayoutNav() {
+  const { theme, colorScheme } = useTheme();
+
   return (
-    <AuthProvider>
+    <Host style={{ flex: 1 }} colorScheme={colorScheme} seedColor={theme.primary}>
       <Stack
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: '#0D1117' },
+          contentStyle: { backgroundColor: theme.background },
         }}
       />
-    </AuthProvider>
+    </Host>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <ThemeProvider>
+      <AuthProvider>
+        <RootLayoutNav />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

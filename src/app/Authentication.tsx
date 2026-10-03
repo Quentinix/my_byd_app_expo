@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useTheme } from '@/context/ThemeContext';
 import { ScreenLayout } from '@/components/byd/ScreenLayout';
 import { LoginForm } from '@/components/byd/LoginForm';
 import { router } from 'expo-router';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator } from 'react-native';
 
 export default function AuthenticationScreen() {
+  const { theme } = useTheme();
   const {
     status,
     session,
@@ -24,16 +26,18 @@ export default function AuthenticationScreen() {
 
   return (
     <ScreenLayout>
-      {status === 'loading' ? <ActivityIndicator color="#ffffff" />:
-      <LoginForm
-        initialUsername={savedUsername}
-        initialCountryCode={countryCode}
-        initialRememberMe={rememberMe}
-        status={status}
-        errorMessage={errorMessage}
-        onLogin={(user, pwd, cCode, rem) => login(user, pwd, cCode, rem)}
-      />}
-
+      {status === 'loading' ? (
+        <ActivityIndicator color={theme.primary} size="large" />
+      ) : (
+        <LoginForm
+          initialUsername={savedUsername}
+          initialCountryCode={countryCode}
+          initialRememberMe={rememberMe}
+          status={status}
+          errorMessage={errorMessage}
+          onLogin={(user, pwd, cCode, rem) => login(user, pwd, cCode, rem)}
+        />
+      )}
     </ScreenLayout>
   );
 }
