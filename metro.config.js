@@ -38,6 +38,11 @@ config.server = {
           delete headers.origin;
           headers['accept-encoding'] = 'identity';
           headers['host'] = targetUrl.hostname;
+          if (buffer.length > 0) {
+            headers['content-length'] = String(buffer.length);
+          } else {
+            delete headers['content-length'];
+          }
 
           const options = {
             hostname: targetUrl.hostname,

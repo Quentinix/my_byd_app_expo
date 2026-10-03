@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import { BangcleCodec, md5Hex, pwdLoginKey, sha1Mixed, buildSignString, computeCheckcode, aesEncryptHex, aesDecryptUtf8 } from './crypto';
 
 export interface BydDeviceProfile {
@@ -157,7 +158,20 @@ export class ExpoBydClient {
     };
 
     const isWeb = Platform.OS === 'web';
-    const defaultBaseUrl = isWeb ? '/byd-api' : 'https://dilinkappoversea-eu.byd.auto';
+    let defaultBaseUrl = 'https://dilinkappoversea-eu.byd.auto';
+    if (isWeb) {
+      defaultBaseUrl = '/byd-api';
+    } else if (__DEV__) {
+      const devHost =
+        Constants.expoConfig?.hostUri ||
+        (Constants as any).manifest2?.extra?.expoGo?.debuggerHost ||
+        (Constants as any).manifest?.debuggerHost;
+      if (devHost) {
+        // Enlève un éventuel protocole déjà présent pour éviter http://http://...
+        const hostWithoutProtocol = devHost.replace(/^https?:\/\//, '');
+        defaultBaseUrl = `http://${hostWithoutProtocol}/byd-api`;
+      }
+    }
 
     this.config = {
       base_url: config.base_url || defaultBaseUrl,
