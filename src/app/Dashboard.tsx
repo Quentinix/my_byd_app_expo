@@ -1,6 +1,7 @@
 import { useAuth } from '@/context/AuthContext';
 import { ScreenLayout } from '@/components/byd/ScreenLayout';
 import { SessionDashboard } from '@/components/byd/SessionDashboard';
+import { Redirect } from 'expo-router';
 
 export default function DashboardScreen() {
   const {
@@ -14,7 +15,7 @@ export default function DashboardScreen() {
   } = useAuth();
 
   if (!session) {
-    return <>Pas de session</>;
+    return <Redirect href="/Authentication" />;
   }
 
   return (

@@ -102,7 +102,11 @@ export const LoginForm: React.FC<LoginFormProps> = ({
             value={username}
             onChangeText={setUsername}
             autoCapitalize="none"
+            autoCorrect={false}
+            spellCheck={false}
             keyboardType="email-address"
+            autoComplete="username"
+            textContentType="username"
           />
         </View>
       </View>
@@ -127,6 +131,11 @@ export const LoginForm: React.FC<LoginFormProps> = ({
             secureTextEntry={!showPassword}
             value={password}
             onChangeText={setPassword}
+            autoCapitalize="none"
+            autoCorrect={false}
+            spellCheck={false}
+            autoComplete="password"
+            textContentType="password"
           />
           <TouchableOpacity
             style={styles.eyeButton}

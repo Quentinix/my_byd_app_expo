@@ -8,23 +8,59 @@ if (!config.resolver.assetExts.includes('bin')) {
   config.resolver.assetExts.push('bin');
 }
 
-// Proxy pour contourner la politique CORS en mode Web (Expo Web local)
+// Proxy pour contourner la politique CORS en mode Web (Expo Web local sécurisé)
 config.server = {
   ...config.server,
   enhanceMiddleware: (metroMiddleware) => {
     return (req, res, next) => {
       if (req.url && req.url.startsWith('/byd-api/')) {
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
-        res.setHeader('Access-Control-Allow-Headers', '*');
+        const origin = req.headers.origin;
+        const host = req.headers.host;
+
+        // Validation de sécurité : n'autoriser que les requêtes locales de développement
+        const isLocalOrigin =
+          !origin ||
+          origin.includes('localhost') ||
+          origin.includes('127.0.0.1') ||
+          (host && origin.includes(host));
+
+        if (!isLocalOrigin) {
+          res.statusCode = 403;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ error: 'Accès refusé : origine non autorisée sur le proxy local' }));
+          return;
+        }
+
+        // Restreindre CORS à l'origine locale spécifique (au lieu de '*')
+        if (origin) {
+          res.setHeader('Access-Control-Allow-Origin', origin);
+          res.setHeader('Vary', 'Origin');
+        }
+        res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept-Encoding, User-Agent');
 
         if (req.method === 'OPTIONS') {
-          res.statusCode = 200;
+          res.statusCode = 204;
           res.end();
           return;
         }
 
+        if (req.method !== 'POST') {
+          res.statusCode = 405;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ error: 'Méthode non autorisée sur le proxy BYD' }));
+          return;
+        }
+
         const targetPath = req.url.replace('/byd-api', '');
+        // Protection contre le path traversal et injection d'URL arbitraire
+        if (!targetPath.startsWith('/') || targetPath.includes('..') || /^\/[a-zA-Z]+:\/\//.test(targetPath)) {
+          res.statusCode = 400;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ error: 'Chemin de proxy invalide' }));
+          return;
+        }
+
         const targetUrl = new URL(targetPath, 'https://dilinkappoversea-eu.byd.auto');
 
         const bodyChunks = [];
@@ -48,7 +84,7 @@ config.server = {
             hostname: targetUrl.hostname,
             port: 443,
             path: targetUrl.pathname + targetUrl.search,
-            method: req.method,
+            method: 'POST',
             headers: headers,
           };
 
@@ -59,14 +95,16 @@ config.server = {
                 res.setHeader(key, proxyRes.headers[key]);
               }
             });
-            res.setHeader('Access-Control-Allow-Origin', '*');
+            if (origin) {
+              res.setHeader('Access-Control-Allow-Origin', origin);
+            }
             proxyRes.pipe(res);
           });
 
           proxyReq.on('error', (err) => {
-            res.statusCode = 500;
+            res.statusCode = 502;
             res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({ error: `Proxy Error: ${err.message}` }));
+            res.end(JSON.stringify({ error: `Erreur du proxy vers BYD: ${err.message}` }));
           });
 
           if (buffer.length > 0) {

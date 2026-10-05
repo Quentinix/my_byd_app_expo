@@ -3,10 +3,11 @@ import { Platform } from 'react-native';
 
 const KEYS = {
   USERNAME: 'byd_cloud_username',
-  PASSWORD: 'byd_cloud_password',
   COUNTRY_CODE: 'byd_cloud_country_code',
   REMEMBER_ME: 'byd_cloud_remember_me',
   SESSION: 'byd_cloud_session',
+  // Clé conservée uniquement pour purger les anciens mots de passe enregistrés
+  LEGACY_PASSWORD: 'byd_cloud_password',
 };
 
 const memoryStorage: Record<string, string> = {};
@@ -55,35 +56,40 @@ export interface StoredSession {
 
 export interface StoredCredentials {
   username: string;
-  password?: string;
   countryCode: string;
   rememberMe: boolean;
 }
 
 export const BydSecureStorage = {
   async saveCredentials(credentials: StoredCredentials): Promise<void> {
-    await setItem(KEYS.USERNAME, credentials.username);
-    await setItem(KEYS.COUNTRY_CODE, credentials.countryCode);
-    await setItem(KEYS.REMEMBER_ME, credentials.rememberMe ? 'true' : 'false');
+    // Purge préventive de tout mot de passe résiduel
+    await deleteItem(KEYS.LEGACY_PASSWORD);
 
-    if (credentials.rememberMe && credentials.password) {
-      await setItem(KEYS.PASSWORD, credentials.password);
+    if (credentials.rememberMe) {
+      await setItem(KEYS.USERNAME, credentials.username);
+      await setItem(KEYS.COUNTRY_CODE, credentials.countryCode);
+      await setItem(KEYS.REMEMBER_ME, 'true');
     } else {
-      await deleteItem(KEYS.PASSWORD);
+      await deleteItem(KEYS.USERNAME);
+      await deleteItem(KEYS.COUNTRY_CODE);
+      await deleteItem(KEYS.REMEMBER_ME);
     }
   },
 
   async loadCredentials(): Promise<StoredCredentials | null> {
+    // Purge de sécurité si un ancien mot de passe était encore stocké
+    await deleteItem(KEYS.LEGACY_PASSWORD);
+
+    const rememberMe = (await getItem(KEYS.REMEMBER_ME)) === 'true';
+    if (!rememberMe) return null;
+
     const username = await getItem(KEYS.USERNAME);
     if (!username) return null;
 
     const countryCode = (await getItem(KEYS.COUNTRY_CODE)) || 'FR';
-    const rememberMe = (await getItem(KEYS.REMEMBER_ME)) === 'true';
-    const password = rememberMe ? (await getItem(KEYS.PASSWORD)) || undefined : undefined;
 
     return {
       username,
-      password,
       countryCode,
       rememberMe,
     };
@@ -109,7 +115,7 @@ export const BydSecureStorage = {
 
   async clearAll(): Promise<void> {
     await deleteItem(KEYS.USERNAME);
-    await deleteItem(KEYS.PASSWORD);
+    await deleteItem(KEYS.LEGACY_PASSWORD);
     await deleteItem(KEYS.COUNTRY_CODE);
     await deleteItem(KEYS.REMEMBER_ME);
     await deleteItem(KEYS.SESSION);

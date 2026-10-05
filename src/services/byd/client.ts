@@ -1,6 +1,5 @@
 import { Platform } from 'react-native';
-import Constants from 'expo-constants';
-import { BangcleCodec, md5Hex, pwdLoginKey, sha1Mixed, buildSignString, computeCheckcode, aesEncryptHex, aesDecryptUtf8 } from './crypto';
+import { BangcleCodec, md5Hex, pwdLoginKey, sha1Mixed, buildSignString, computeCheckcode, aesEncryptHex, aesDecryptUtf8, secureRandomHex } from './crypto';
 
 export interface BydDeviceProfile {
   ostype: string;
@@ -133,6 +132,42 @@ export class Session {
   }
 }
 
+function parseRealtimeTelemetry(vehicle: BydVehicle, rt: BydRealtimeData): BydVehicle {
+  const updatedVehicle: BydVehicle = {
+    ...vehicle,
+    realtime: rt,
+  };
+
+  const rawElec = rt.elecPercent;
+  if (rawElec !== undefined && rawElec !== null && rawElec !== '' && rawElec !== -1) {
+    updatedVehicle.soc = typeof rawElec === 'number' ? rawElec : parseFloat(String(rawElec));
+  }
+
+  if (rt.onlineState === 1) {
+    updatedVehicle.status = 'En ligne 🟢';
+    updatedVehicle.onlineState = 1;
+  } else if (rt.onlineState === 2) {
+    updatedVehicle.status = 'Hors ligne 🔴';
+    updatedVehicle.onlineState = 2;
+  }
+
+  const rawTemp = rt.tempInCar;
+  if (rawTemp !== undefined && Number(rawTemp) > -100) {
+    updatedVehicle.tempInCar = typeof rawTemp === 'number' ? rawTemp : parseFloat(String(rawTemp));
+  }
+
+  if (rt.leftFrontTirepressure) {
+    updatedVehicle.tirePressures = {
+      leftFront: parseFloat(String(rt.leftFrontTirepressure)),
+      rightFront: parseFloat(String(rt.rightFrontTirepressure)),
+      leftRear: parseFloat(String(rt.leftRearTirepressure)),
+      rightRear: parseFloat(String(rt.rightRearTirepressure)),
+    };
+  }
+
+  return updatedVehicle;
+}
+
 export class ExpoBydClient {
   public config: BydConfig;
   private codec: BangcleCodec;
@@ -158,20 +193,7 @@ export class ExpoBydClient {
     };
 
     const isWeb = Platform.OS === 'web';
-    let defaultBaseUrl = 'https://dilinkappoversea-eu.byd.auto';
-    if (isWeb) {
-      defaultBaseUrl = '/byd-api';
-    } else if (__DEV__) {
-      const devHost =
-        Constants.expoConfig?.hostUri ||
-        (Constants as any).manifest2?.extra?.expoGo?.debuggerHost ||
-        (Constants as any).manifest?.debuggerHost;
-      if (devHost) {
-        // Enlève un éventuel protocole déjà présent pour éviter http://http://...
-        const hostWithoutProtocol = devHost.replace(/^https?:\/\//, '');
-        defaultBaseUrl = `http://${hostWithoutProtocol}/byd-api`;
-      }
-    }
+    const defaultBaseUrl = isWeb ? '/byd-api' : 'https://dilinkappoversea-eu.byd.auto';
 
     this.config = {
       base_url: config.base_url || defaultBaseUrl,
@@ -194,10 +216,21 @@ export class ExpoBydClient {
     this.session = new Session(userId, signToken, encryToken);
   }
 
+  private createDevicePayload(extra: Record<string, any> = {}): Record<string, any> {
+    return {
+      deviceType: this.config.device.device_type,
+      imeiMD5: this.config.device.imei_md5,
+      networkType: this.config.device.network_type,
+      random: secureRandomHex(16),
+      timeStamp: String(Date.now()),
+      version: this.config.app_inner_version,
+      ...extra,
+    };
+  }
+
   public async login(): Promise<Session> {
-    await this.codec.init();
     const nowMs = Date.now();
-    const randomHex = md5Hex(String(Math.random()) + String(nowMs)).toUpperCase();
+    const randomHex = secureRandomHex(16);
     const serviceTime = String(nowMs);
 
     const inner = {
@@ -293,19 +326,12 @@ export class ExpoBydClient {
   }
 
   public async getVehicles(): Promise<BydVehicle[]> {
-    const session = this.session;
-    if (!session) throw new Error('Session non établie. Veuillez vous connecter.');
+    if (!this.session) {
+      throw new BydSessionExpiredError('NO_SESSION', 'Session non établie. Veuillez vous connecter.');
+    }
 
-    const innerPayload = {
-      deviceType: this.config.device.device_type,
-      imeiMD5: this.config.device.imei_md5,
-      networkType: this.config.device.network_type,
-      random: md5Hex(String(Math.random()) + String(Date.now())).toUpperCase(),
-      timeStamp: String(Date.now()),
-      version: this.config.app_inner_version,
-    };
-
-    const res = await this.postTokenJson('/app/account/getAllListByUserId', innerPayload);
+    const payload = this.createDevicePayload();
+    const res = await this.postTokenJson('/app/account/getAllListByUserId', payload);
     const rawList: BydRawVehicle[] = Array.isArray(res) ? res : (res?.list || []);
 
     return rawList.map((raw) => ({
@@ -321,45 +347,13 @@ export class ExpoBydClient {
     }));
   }
 
-  /**
-   * Fonction dédiée pour interroger la T-Box et récupérer la télémétrie en temps réel d'un véhicule.
-   */
   public async fetchVehicleRealtime(vehicle: BydVehicle): Promise<BydVehicle> {
-    const updatedVehicle: BydVehicle = { ...vehicle };
+    let updatedVehicle = { ...vehicle };
 
     try {
-      // Interrogation T-Box temps réel (trigger + polling)
       const rt = await this.getVehicleRealtime(vehicle.vin, vehicle.raw?.tboxVersion || '3');
-      updatedVehicle.realtime = rt;
+      updatedVehicle = parseRealtimeTelemetry(vehicle, rt);
 
-      const rawElec = rt.elecPercent;
-      if (rawElec !== undefined && rawElec !== null && rawElec !== '' && rawElec !== -1) {
-        updatedVehicle.soc = typeof rawElec === 'number' ? rawElec : parseFloat(String(rawElec));
-      }
-
-      if (rt.onlineState === 1) {
-        updatedVehicle.status = 'En ligne 🟢';
-        updatedVehicle.onlineState = 1;
-      } else if (rt.onlineState === 2) {
-        updatedVehicle.status = 'Hors ligne 🔴';
-        updatedVehicle.onlineState = 2;
-      }
-
-      const rawTemp = rt.tempInCar;
-      if (rawTemp !== undefined && Number(rawTemp) > -100) {
-        updatedVehicle.tempInCar = typeof rawTemp === 'number' ? rawTemp : parseFloat(String(rawTemp));
-      }
-
-      if (rt.leftFrontTirepressure) {
-        updatedVehicle.tirePressures = {
-          leftFront: parseFloat(String(rt.leftFrontTirepressure)),
-          rightFront: parseFloat(String(rt.rightFrontTirepressure)),
-          leftRear: parseFloat(String(rt.leftRearTirepressure)),
-          rightRear: parseFloat(String(rt.rightRearTirepressure)),
-        };
-      }
-
-      // Fallback si le SoC n'a pas été renvoyé par la T-Box
       if (updatedVehicle.soc === undefined) {
         const charging = await this.getVehicleCharging(vehicle.vin);
         if (charging && typeof charging.soc === 'number') {
@@ -367,7 +361,6 @@ export class ExpoBydClient {
         }
       }
     } catch {
-      // Fallback ultime vers la page de recharge
       try {
         const charging = await this.getVehicleCharging(vehicle.vin);
         if (charging && typeof charging.soc === 'number') {
@@ -391,18 +384,13 @@ export class ExpoBydClient {
       throw new BydSessionExpiredError('NO_SESSION', 'Session non établie ou jeton indisponible.');
     }
 
-    const buildInner = (extra: Record<string, any> = {}) => ({
-      vin,
-      deviceType: this.config.device.device_type,
-      imeiMD5: this.config.device.imei_md5,
-      networkType: this.config.device.network_type,
-      random: md5Hex(String(Math.random()) + String(Date.now())).toUpperCase(),
-      timeStamp: String(Date.now()),
-      version: this.config.app_inner_version,
-      energyType: '1',
-      tboxVersion,
-      ...extra,
-    });
+    const buildInner = (extra: Record<string, any> = {}) =>
+      this.createDevicePayload({
+        vin,
+        energyType: '1',
+        tboxVersion,
+        ...extra,
+      });
 
     const isReady = (data: any): boolean => {
       if (!data || typeof data !== 'object') return false;
@@ -414,7 +402,6 @@ export class ExpoBydClient {
       return false;
     };
 
-    // Phase 1 : Trigger initial
     const triggerRes = await this.postTokenJson('/vehicleInfo/vehicle/vehicleRealTimeRequest', buildInner());
     if (isReady(triggerRes)) {
       return triggerRes;
@@ -425,7 +412,6 @@ export class ExpoBydClient {
       return triggerRes;
     }
 
-    // Phase 2 : Polling HTTP
     for (let attempt = 1; attempt <= pollAttempts; attempt++) {
       await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
       try {
@@ -449,17 +435,8 @@ export class ExpoBydClient {
       throw new BydSessionExpiredError('NO_SESSION', 'Session non établie ou jeton indisponible.');
     }
 
-    const innerPayload = {
-      vin,
-      deviceType: this.config.device.device_type,
-      imeiMD5: this.config.device.imei_md5,
-      networkType: this.config.device.network_type,
-      random: md5Hex(String(Math.random()) + String(Date.now())).toUpperCase(),
-      timeStamp: String(Date.now()),
-      version: this.config.app_inner_version,
-    };
-
-    return this.postTokenJson('/control/smartCharge/homePage', innerPayload);
+    const payload = this.createDevicePayload({ vin });
+    return this.postTokenJson('/control/smartCharge/homePage', payload);
   }
 
   private async postTokenJson(endpoint: string, innerPayload: Record<string, any>): Promise<any> {
@@ -521,7 +498,6 @@ export class ExpoBydClient {
   }
 
   private async postSecure(endpoint: string, outerPayload: Record<string, any>): Promise<any> {
-    await this.codec.init();
     const compactJson = JSON.stringify(outerPayload);
     const encodedEnvelope = this.codec.encodeEnvelope(compactJson);
 
@@ -543,12 +519,22 @@ export class ExpoBydClient {
     }
 
     const text = await response.text();
-    const bodyJson = JSON.parse(text);
+    let bodyJson: any;
+    try {
+      bodyJson = JSON.parse(text);
+    } catch {
+      throw new Error("Réponse inattendue du serveur BYD (format non-JSON). Vérifiez votre connexion Internet.");
+    }
+
     if (!bodyJson || !bodyJson.response) {
       throw new Error('Champ response manquant dans la réponse BYD');
     }
 
     const decodedText = this.codec.decodeResponseEnvelope(bodyJson.response);
-    return JSON.parse(decodedText);
+    try {
+      return JSON.parse(decodedText);
+    } catch {
+      throw new Error("Données déchiffrées invalides reçues du serveur BYD.");
+    }
   }
 }

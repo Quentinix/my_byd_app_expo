@@ -24,6 +24,13 @@ export interface AuthContextType {
   clearError: () => void;
 }
 
+function isSessionExpired(err: unknown): boolean {
+  return (
+    err instanceof BydSessionExpiredError ||
+    (typeof err === 'object' && err !== null && (err as { name?: string }).name === 'BydSessionExpiredError')
+  );
+}
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -60,7 +67,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (savedSession) {
         const newClient = new ExpoBydClient({
           username: savedCreds?.username || 'user',
-          password: savedCreds?.password || '',
+          password: '',
           country_code: savedCreds?.countryCode || 'FR',
         });
         newClient.setSession(savedSession.userId, savedSession.signToken, savedSession.encryToken);
@@ -73,13 +80,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (vehs.length > 0) setActiveVehicle(vehs[0]);
           setStatus('authenticated');
           return;
-        } catch (err: any) {
-          if (err instanceof BydSessionExpiredError || err?.name === 'BydSessionExpiredError') {
+        } catch (err: unknown) {
+          if (isSessionExpired(err)) {
             await handleSessionExpired('Jeton de session expiré au démarrage');
             return;
-          } else {
-            await BydSecureStorage.clearSession();
           }
+          await BydSecureStorage.clearSession();
         }
       }
       setStatus('idle');
@@ -118,10 +124,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setSavedUsername(username);
       setCountryCode(cCode);
 
-      // Persist credentials securely
+      // Persist credentials securely (identifiant et paramètres uniquement, jamais le mot de passe)
       await BydSecureStorage.saveCredentials({
         username,
-        password: remMe ? password : undefined,
         countryCode: cCode,
         rememberMe: remMe,
       });
@@ -157,12 +162,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (vehs.length > 0 && !activeVehicle) {
         setActiveVehicle(vehs[0]);
       }
-    } catch (err: any) {
-      if (err instanceof BydSessionExpiredError || err?.name === 'BydSessionExpiredError') {
+    } catch (err: unknown) {
+      if (isSessionExpired(err)) {
         await handleSessionExpired();
-      } else {
-        throw err;
+        return;
       }
+      throw err;
     }
   };
 
@@ -180,12 +185,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (activeVehicle?.vin === updated.vin) {
         setActiveVehicle(updated);
       }
-    } catch (err: any) {
-      if (err instanceof BydSessionExpiredError || err?.name === 'BydSessionExpiredError') {
+    } catch (err: unknown) {
+      if (isSessionExpired(err)) {
         await handleSessionExpired();
-      } else {
-        throw err;
+        return;
       }
+      throw err;
     }
   };
 

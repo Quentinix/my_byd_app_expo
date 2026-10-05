@@ -9,6 +9,10 @@ export function md5Hex(str: string): string {
   return CryptoJS.MD5(str).toString().toUpperCase();
 }
 
+export function secureRandomHex(bytesCount: number = 16): string {
+  return CryptoJS.lib.WordArray.random(bytesCount).toString().toUpperCase();
+}
+
 export function pwdLoginKey(password: string): string {
   return md5Hex(md5Hex(password));
 }
@@ -446,31 +450,48 @@ function addPkcs7(buffer: Uint8Array): Uint8Array {
 }
 
 function stripPkcs7(buffer: Uint8Array): Uint8Array {
+  if (buffer.length === 0) {
+    throw new Error('Tampon de déchiffrement vide');
+  }
   const padLength = buffer[buffer.length - 1];
+  if (padLength < 1 || padLength > 16 || padLength > buffer.length) {
+    throw new Error('Padding PKCS#7 invalide ou données corrompues');
+  }
+  for (let i = buffer.length - padLength; i < buffer.length; i++) {
+    if (buffer[i] !== padLength) {
+      throw new Error('Octets de padding PKCS#7 non conformes');
+    }
+  }
   return buffer.subarray(0, buffer.length - padLength);
 }
 
-export class BangcleCodec {
-  private tables: BangcleTables | null = null;
+let cachedBangcleTables: BangcleTables | null = null;
 
-  public async init(): Promise<void> {
-    if (this.tables) return;
+function getBangcleTables(): BangcleTables {
+  if (!cachedBangcleTables) {
     const bytes = base64ToBytes(BANGCLE_TABLES_BASE64);
-    this.tables = loadTablesFromBin(bytes);
+    cachedBangcleTables = loadTablesFromBin(bytes);
+  }
+  return cachedBangcleTables;
+}
+
+export class BangcleCodec {
+  public init(): void {
+    getBangcleTables();
   }
 
   public encodeEnvelope(plaintext: string): string {
-    if (!this.tables) throw new Error('BangcleCodec non initialisé');
+    const tables = getBangcleTables();
     const encoder = new TextEncoder();
     const plainBytes = encoder.encode(plaintext);
     const padded = addPkcs7(plainBytes);
     const zeroIv = new Uint8Array(16);
-    const ciphertext = encryptCbc(this.tables, padded, zeroIv);
+    const ciphertext = encryptCbc(tables, padded, zeroIv);
     return 'F' + bytesToBase64(ciphertext);
   }
 
   public decodeEnvelope(envelope: string): Uint8Array {
-    if (!this.tables) throw new Error('BangcleCodec non initialisé');
+    const tables = getBangcleTables();
     let cleaned = envelope.replace(/[\s\t\n\r]/g, '').trim();
     cleaned = cleaned.replace(/-/g, '+').replace(/_/g, '/');
 
@@ -484,7 +505,7 @@ export class BangcleCodec {
 
     const ciphertext = base64ToBytes(cleaned);
     const zeroIv = new Uint8Array(16);
-    const plaintext = decryptCbc(this.tables, ciphertext, zeroIv);
+    const plaintext = decryptCbc(tables, ciphertext, zeroIv);
     return stripPkcs7(plaintext);
   }
 
@@ -499,3 +520,4 @@ export class BangcleCodec {
     return decodedText;
   }
 }
+
