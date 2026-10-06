@@ -1,5 +1,13 @@
+import * as Crypto from 'expo-crypto';
 import CryptoJS from 'crypto-js';
 import { BANGCLE_TABLES_BASE64 } from './bangcle_tables.data';
+
+if (typeof globalThis.crypto === 'undefined') {
+  (globalThis as any).crypto = {};
+}
+if (typeof (globalThis.crypto as any).getRandomValues === 'undefined') {
+  (globalThis.crypto as any).getRandomValues = Crypto.getRandomValues;
+}
 
 // ==========================================
 // 1. CryptoJS-backed Hash & Cipher Functions
@@ -10,7 +18,12 @@ export function md5Hex(str: string): string {
 }
 
 export function secureRandomHex(bytesCount: number = 16): string {
-  return CryptoJS.lib.WordArray.random(bytesCount).toString().toUpperCase();
+  const bytes = Crypto.getRandomBytes(bytesCount);
+  let hex = '';
+  for (let i = 0; i < bytes.length; i++) {
+    hex += bytes[i].toString(16).padStart(2, '0');
+  }
+  return hex.toUpperCase();
 }
 
 export function pwdLoginKey(password: string): string {

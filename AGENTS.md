@@ -19,7 +19,7 @@ Tout agent intervenant sur cette base de code DOIT respecter scrupuleusement les
   - Protection contre la traversée de chemin (*path traversal*) et les injections d'URL.
 
 ## 3. Cryptographie et Aléatoire
-- **Générateur aléatoire sécurisé (CSPRNG)** : Ne jamais utiliser `Math.random()` pour générer des signatures, nonces ou jetons. Utiliser exclusivement `secureRandomHex()` (basé sur un générateur cryptographiquement sûr).
+- **Générateur aléatoire sécurisé (CSPRNG)** : Ne jamais utiliser `Math.random()` ni `CryptoJS.lib.WordArray.random()` (inopérant sous React Native natif sans CSPRNG polyfillé). Utiliser exclusivement `secureRandomHex()` (basé sur le module natif `expo-crypto`).
 - **Validation du padding PKCS#7** : Toujours vérifier la cohérence et l'intégrité de tous les octets de padding lors du déchiffrement (`stripPkcs7`) avant tout découpage de mémoire.
 
 ## 4. Protection de l'Interface Utilisateur (UI)
